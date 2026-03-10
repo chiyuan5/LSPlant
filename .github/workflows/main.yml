@@ -12,7 +12,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          submodules: false  # 关键：不拉子模块
+          submodules: false
+
+      - name: Init required submodule only
+        run: |
+          git submodule sync -- lsplant/src/main/jni/external/dex_builder
+          git submodule update --init --depth 1 lsplant/src/main/jni/external/dex_builder
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -22,7 +27,7 @@ jobs:
           cache: gradle
 
       - name: Set up Ninja
-        uses: seanmiddleditch/gha-setup-ninja@master
+        uses: seanmiddleditch/gha-setup-ninja@v4
         with:
           version: 1.12.1
 
@@ -35,9 +40,13 @@ jobs:
       - name: Grant execute permission
         run: chmod +x ./gradlew
 
-      # 关键：只编译 lsplant 模块，不跑 test，不触发子模块拉取
+      - name: Debug dex_builder
+        run: |
+          ls -la lsplant/src/main/jni/external
+          ls -la lsplant/src/main/jni/external/dex_builder
+
       - name: Build standalone aar
-        run: ./gradlew :lsplant:assembleStandalone -x test -x check --stacktrace
+        run: ./gradlew :lsplant:assembleStandalone -x test -x check --stacktrace --no-daemon
 
       - name: Upload aar
         uses: actions/upload-artifact@v4
