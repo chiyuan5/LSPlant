@@ -60,7 +60,8 @@ android {
             version = androidCmakeVersion
         }
     }
-    namespace = "org.lsposed.lsplant"
+
+    namespace = "com.chiyuan5.lsplant"
 
     publishing {
         singleVariant("release") {
@@ -118,38 +119,41 @@ val symbolsStandaloneTask = tasks.register<Jar>("generateStandaloneSymbolsJar") 
     archiveBaseName = "standalone"
 }
 
-val repo = jgit.repo(true)
-val ver = repo?.latestTag?.removePrefix("v") ?: "0.0"
+// 你也可以改回从 git tag 取版本：
+// val repo = jgit.repo(true)
+// val ver = repo?.latestTag?.removePrefix("v") ?: "0.0"
+val ver = "6.4-chiyuan.1"
 println("${rootProject.name} version: $ver")
 
 publish {
-    githubRepo = "LSPosed/LSPlant"
+    githubRepo = "chiyuan5/LSPlant"
     publications {
         fun MavenPublication.setup() {
-            group = "org.lsposed.lsplant"
+            group = "com.chiyuan5.lsplant"
             version = ver
             pom {
                 name = "LSPlant"
                 description = "A hook framework for Android Runtime (ART)"
-                url = "https://github.com/LSPosed/LSPlant"
+                url = "https://github.com/chiyuan5/LSPlant"
                 licenses {
                     license {
                         name = "GNU Lesser General Public License v3.0"
-                        url = "https://github.com/LSPosed/LSPlant/blob/master/LICENSE"
+                        url = "https://github.com/chiyuan5/LSPlant/blob/master/LICENSE"
                     }
                 }
                 developers {
                     developer {
-                        name = "Lsposed"
-                        url = "https://lsposed.org"
+                        name = "chiyuan5"
+                        url = "https://github.com/chiyuan5"
                     }
                 }
                 scm {
-                    connection = "scm:git:https://github.com/LSPosed/LSPlant.git"
-                    url = "https://github.com/LSPosed/LSPlant"
+                    connection = "scm:git:https://github.com/chiyuan5/LSPlant.git"
+                    url = "https://github.com/chiyuan5/LSPlant"
                 }
             }
         }
+
         register<MavenPublication>("lsplant") {
             artifactId = "lsplant"
             afterEvaluate {
@@ -158,6 +162,7 @@ publish {
             }
             setup()
         }
+
         register<MavenPublication>("lsplantStandalone") {
             artifactId = "lsplant-standalone"
             afterEvaluate {
