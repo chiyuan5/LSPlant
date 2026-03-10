@@ -15,7 +15,10 @@ if (LSPLANT_STANDALONE)
     link_libraries(cxx::cxx)
 endif()
 
-set(SOURCES lsplant.cc)
+set(SOURCES
+    lsplant.cc
+    exports.cpp
+)
 file(GLOB_RECURSE MODULE_SOURCES CONFIGURE_DEPENDS "*.cxx")
 file(GLOB_RECURSE MODULE_INTERFACES CONFIGURE_DEPENDS "*.ixx")
 list(FILTER MODULE_SOURCES EXCLUDE REGEX "${PROJECT_SOURCE_DIR}.external.+")
