@@ -14,10 +14,12 @@ jobs:
           fetch-depth: 0
           submodules: false
 
-      - name: Init required submodule only
+      - name: Init required submodules only
         run: |
           git submodule sync -- lsplant/src/main/jni/external/dex_builder
           git submodule update --init --depth 1 lsplant/src/main/jni/external/dex_builder
+          git -C lsplant/src/main/jni/external/dex_builder submodule sync --recursive
+          git -C lsplant/src/main/jni/external/dex_builder submodule update --init --recursive --depth 1
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -40,10 +42,12 @@ jobs:
       - name: Grant execute permission
         run: chmod +x ./gradlew
 
-      - name: Debug dex_builder
+      - name: Debug submodules
         run: |
           ls -la lsplant/src/main/jni/external
           ls -la lsplant/src/main/jni/external/dex_builder
+          ls -la lsplant/src/main/jni/external/dex_builder/external || true
+          ls -la lsplant/src/main/jni/external/dex_builder/external/parallel_hashmap || true
 
       - name: Build standalone aar
         run: ./gradlew :lsplant:assembleStandalone -x test -x check --stacktrace --no-daemon
