@@ -1,175 +1,42 @@
-plugins {
-    alias(libs.plugins.agp.lib)
-    alias(libs.plugins.lsplugin.jgit)
-    alias(libs.plugins.lsplugin.publish)
-    alias(libs.plugins.lsplugin.cmaker)
-    `maven-publish`
-    signing
-}
+name: Build lsplant-standalone aar
 
-val androidTargetSdkVersion: Int by rootProject.extra
-val androidMinSdkVersion: Int by rootProject.extra
-val androidBuildToolsVersion: String by rootProject.extra
-val androidCompileSdkVersion: Int by rootProject.extra
-val androidNdkVersion: String by rootProject.extra
-val androidCmakeVersion: String by rootProject.extra
+on:
+  workflow_dispatch:
 
-android {
-    compileSdk = androidCompileSdkVersion
-    ndkVersion = androidNdkVersion
-    buildToolsVersion = androidBuildToolsVersion
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-    buildFeatures {
-        buildConfig = false
-        prefabPublishing = true
-        androidResources = false
-        prefab = true
-    }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
 
-    packaging {
-        jniLibs {
-            excludes += "**.so"
-        }
-    }
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
 
-    prefab {
-        register("lsplant") {
-            headers = "src/main/jni/include"
-        }
-    }
+      - name: Set up Ninja
+        uses: seanmiddleditch/gha-setup-ninja@master
+        with:
+          version: 1.12.1
 
-    defaultConfig {
-        minSdk = androidMinSdkVersion
-    }
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-    buildTypes {
-        create("standalone") {
-            initWith(getByName("release"))
-            matchingFallbacks += "release"
-        }
-    }
+      - name: Remove Android bundled CMake
+        run: rm -rf $ANDROID_HOME/cmake
 
-    lint {
-        abortOnError = true
-        checkReleaseBuilds = false
-    }
+      - name: Build standalone aar
+        run: ./gradlew :lsplant:assembleStandalone
 
-    externalNativeBuild {
-        cmake {
-            path = file("src/main/jni/CMakeLists.txt")
-            version = androidCmakeVersion
-        }
-    }
-
-    namespace = "com.chiyuan5.lsplant"
-
-    publishing {
-        singleVariant("release") {
-            withSourcesJar()
-            withJavadocJar()
-        }
-        singleVariant("standalone") {
-            withSourcesJar()
-            withJavadocJar()
-        }
-    }
-}
-
-cmaker {
-    default {
-        val flags = arrayOf(
-            "-Werror",
-            "-Wno-gnu-string-literal-operator-template",
-        )
-        abiFilters("armeabi-v7a", "arm64-v8a", "x86", "x86_64", "riscv64")
-        cppFlags += flags
-        cFlags += flags
-    }
-    buildTypes {
-        when (it.name) {
-            "debug", "release" -> {
-                arguments += "-DANDROID_STL=c++_shared"
-                arguments += "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"
-            }
-            "standalone" -> {
-                arguments += "-DANDROID_STL=none"
-                arguments += "-DLSPLANT_STANDALONE=ON"
-                arguments += "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"
-            }
-        }
-        arguments += "-DDEBUG_SYMBOLS_PATH=${project.layout.buildDirectory.file("symbols/${it.name}").get().asFile.absolutePath}"
-    }
-}
-
-dependencies {
-    "standaloneCompileOnly"(libs.cxx)
-}
-
-val symbolsReleaseTask = tasks.register<Jar>("generateReleaseSymbolsJar") {
-    from(project.layout.buildDirectory.file("symbols/release"))
-    exclude("**/dex_builder")
-    archiveClassifier = "symbols"
-    archiveBaseName = "release"
-}
-
-val symbolsStandaloneTask = tasks.register<Jar>("generateStandaloneSymbolsJar") {
-    from(project.layout.buildDirectory.file("symbols/standalone"))
-    exclude("**/dex_builder")
-    archiveClassifier = "symbols"
-    archiveBaseName = "standalone"
-}
-
-// 你也可以改回从 git tag 取版本：
-// val repo = jgit.repo(true)
-// val ver = repo?.latestTag?.removePrefix("v") ?: "0.0"
-val ver = "6.4-chiyuan.1"
-println("${rootProject.name} version: $ver")
-
-publish {
-    githubRepo = "chiyuan5/LSPlant"
-    publications {
-        fun MavenPublication.setup() {
-            group = "com.chiyuan5.lsplant"
-            version = ver
-            pom {
-                name = "LSPlant"
-                description = "A hook framework for Android Runtime (ART)"
-                url = "https://github.com/chiyuan5/LSPlant"
-                licenses {
-                    license {
-                        name = "GNU Lesser General Public License v3.0"
-                        url = "https://github.com/chiyuan5/LSPlant/blob/master/LICENSE"
-                    }
-                }
-                developers {
-                    developer {
-                        name = "chiyuan5"
-                        url = "https://github.com/chiyuan5"
-                    }
-                }
-                scm {
-                    connection = "scm:git:https://github.com/chiyuan5/LSPlant.git"
-                    url = "https://github.com/chiyuan5/LSPlant"
-                }
-            }
-        }
-
-        register<MavenPublication>("lsplant") {
-            artifactId = "lsplant"
-            afterEvaluate {
-                from(components.getByName("release"))
-                artifact(symbolsReleaseTask)
-            }
-            setup()
-        }
-
-        register<MavenPublication>("lsplantStandalone") {
-            artifactId = "lsplant-standalone"
-            afterEvaluate {
-                from(components.getByName("standalone"))
-                artifact(symbolsStandaloneTask)
-            }
-            setup()
-        }
-    }
-}
+      - name: Upload aar
+        uses: actions/upload-artifact@v4
+        with:
+          name: lsplant-standalone-aar
+          path: lsplant/build/outputs/aar/*.aar
